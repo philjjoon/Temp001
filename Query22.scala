@@ -36,14 +36,16 @@ object Query22{
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     val wareHouse = getWarehouseDataSet(env)
-    val filterDateDim = getDateDimDataSet(env).filter(items => Math.abs(dateFormat.parse(items._date).getTime - dateConf)/DAY <= 30)
+    val filterDateDim = getDateDimDataSet(env)
+      .filter(items => Math.abs(dateFormat.parse(items._date).getTime - dateConf)/DAY <= 30)
 
     val invJoinWithOthers = getInventoryDataSet(env)
       .joinWithTiny(filterDateDim).where(_._date_sk).equalTo(_._date_sk)
       .joinWithTiny(wareHouse).where(_._1._warehouse_sk).equalTo(_._warehouse_sk).apply((indd,wh) => (indd._1,indd._2,wh))
 
-    val itemJoinWithOthers = getItemDataSet(env).filter(items => items._current_price >= price_min1 && items._current_price <= price_max1)
-      .joinWithHuge(invJoinWithOthers).where(_._item_sk).equalTo(_._1._item_sk).apply((item,others) => (others._3._warehouse_name,item._item_id,others._2._date,others._1._quantity_on))
+    val itemJoinWithOthers = getItemDataSet(env)
+      .filter(items => items._current_price >= price_min1 && items._current_price <= price_max1)
+      .joinWithHuge(invJoinWithOthers).where(_._item_sk).equalTo(_._1._item_sk)
       .groupBy(0,1)
       .reduceGroup(new DiffDate)
       .filter(items => items._3 > 0 && items._4/items._3 >= 2.0/3.0 && items._4/items._3 <= 3.0/2.0)
